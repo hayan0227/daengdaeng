@@ -1,0 +1,2108 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>댕댕여지도</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<script type="text/javascript" src="//dapi.kakao.com/v2/maps/sdk.js?appkey=1ef06c998dba4cefefcd5e525f98297f&libraries=services"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --point: #d49e5e;
+  --point-dark: #b8803e;
+  --point-light: #f5e6ce;
+  --point-xlight: #fdf8f2;
+  --text: #1a1a1a;
+  --text-sub: #555;
+  --text-muted: #999;
+  --border: #e8e8e8;
+  --bg: #fff;
+  --sidebar-w: 300px;
+  --nav-h: 52px;
+}
+
+body {
+  font-family: 'Noto Sans KR', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── NAVBAR ── */
+nav {
+  height: var(--nav-h);
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 28px;
+  gap: 0;
+  flex-shrink: 0;
+  z-index: 300;
+  position: relative;
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  text-decoration: none;
+  margin-right: 36px;
+  letter-spacing: -0.3px;
+  white-space: nowrap;
+}
+.nav-logo-icon {
+  font-size: 20px;
+  color: var(--point);
+}
+
+.nav-links {
+  display: flex;
+  gap: 0;
+  align-items: center;
+  flex: 1;
+}
+.nav-link {
+  font-size: 14px;
+  color: var(--text-sub);
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  transition: color 0.15s;
+  font-weight: 400;
+  white-space: nowrap;
+}
+.nav-link:hover { color: var(--text); }
+
+.nav-login {
+  background: var(--point);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 9px 24px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+  white-space: nowrap;
+  letter-spacing: -0.2px;
+}
+.nav-login:hover { background: var(--point-dark); }
+
+/* ── BODY ── */
+.body-wrap {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* ── SIDEBAR ── */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* 상세 패널 - 네이버지도 스타일 */
+.detail-panel {
+  width: 0;
+  flex-shrink: 0;
+  background: #fff;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: width 0.3s cubic-bezier(0.4,0,0.2,1);
+  z-index: 200;
+}
+.detail-panel.open {
+  width: 380px;
+}
+
+/* Search */
+.sidebar-search {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.search-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 13px;
+  background: #fff;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.search-box:focus-within {
+  border-color: var(--point);
+  box-shadow: 0 0 0 3px rgba(212,158,94,0.12);
+}
+.search-box input {
+  border: none;
+  background: none;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13.5px;
+  color: var(--text);
+  flex: 1;
+  outline: none;
+}
+.search-box input::placeholder { color: var(--text-muted); }
+.search-icon { color: var(--text-muted); font-size: 15px; flex-shrink: 0; }
+
+/* Location */
+.sidebar-location {
+  padding: 10px 14px 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.sidebar-location .loc-icon { color: var(--point); font-size: 14px; }
+
+/* Section label */
+.sidebar-section-label {
+  padding: 4px 14px 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+/* Place list */
+.place-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 0 12px;
+}
+
+.place-card {
+  display: flex;
+  gap: 12px;
+  padding: 12px 14px;
+  cursor: pointer;
+  transition: background 0.15s;
+  border-bottom: 1px solid #f5f5f5;
+  text-decoration: none;
+  color: inherit;
+}
+.place-card:hover { background: var(--point-xlight); }
+.place-card.active { background: var(--point-xlight); }
+
+.place-img {
+  width: 76px;
+  height: 76px;
+  border-radius: 8px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #f0f0f0;
+  overflow: hidden;
+  position: relative;
+}
+.place-img-placeholder {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  background: var(--point-light);
+}
+
+.place-info { flex: 1; min-width: 0; display: flex; flex-direction: column; justify-content: center; gap: 3px; }
+.place-category { font-size: 11px; color: var(--point-dark); font-weight: 600; }
+.place-name { font-size: 14px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.place-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.place-meta { display: flex; gap: 8px; align-items: center; margin-top: 2px; }
+.place-rating { font-size: 11.5px; color: var(--point); font-weight: 700; display: flex; align-items: center; gap: 2px; }
+.place-dist { font-size: 11px; color: var(--text-muted); }
+
+/* Scrollbar */
+.place-list::-webkit-scrollbar { width: 3px; }
+.place-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+/* ── MAP AREA ── */
+.map-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+#naverMap {
+  width: 100%;
+  height: 100%;
+}
+
+/* Category filter chips on top of map */
+.map-filter-bar {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  right: 14px;
+  display: flex;
+  gap: 8px;
+  z-index: 99999;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.map-filter-bar::-webkit-scrollbar { display: none; }
+
+.map-chip {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #fff;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 20px;
+  padding: 7px 14px;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-sub);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.16s;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  flex-shrink: 0;
+}
+.map-chip:hover { border-color: var(--point); color: var(--point-dark); }
+.map-chip.active {
+  background: var(--point);
+  border-color: var(--point);
+  color: #fff;
+  box-shadow: 0 2px 10px rgba(212,158,94,0.35);
+}
+.map-chip-icon { font-size: 14px; line-height: 1; }
+
+/* Map controls */
+.map-ctrl-group {
+  position: absolute;
+  right: 14px;
+  bottom: 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  z-index: 100;
+}
+.map-ctrl-btn {
+  width: 38px; height: 38px;
+  background: #fff;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  transition: all 0.14s;
+  color: var(--text-sub);
+}
+.map-ctrl-btn:hover { background: var(--point-xlight); border-color: var(--point); }
+
+/* Info popup on map */
+.map-popup {
+  position: absolute;
+  background: #fff;
+  border-radius: 12px;
+  padding: 14px 16px;
+  box-shadow: 0 6px 28px rgba(0,0,0,0.15);
+  z-index: 200;
+  min-width: 200px;
+  max-width: 240px;
+  display: none;
+  border: 1px solid var(--border);
+}
+.map-popup.show { display: block; animation: popIn 0.18s ease; }
+@keyframes popIn { from { opacity:0; transform:scale(0.92) translateY(4px); } to { opacity:1; transform:scale(1) translateY(0); } }
+.mp-close {
+  position: absolute; top: 8px; right: 10px;
+  font-size: 16px; color: var(--text-muted); cursor: pointer; line-height: 1;
+}
+.mp-img {
+  width: 100%; height: 100px; border-radius: 8px; object-fit: cover;
+  background: var(--point-light); display: flex; align-items: center; justify-content: center;
+  font-size: 36px; margin-bottom: 10px; overflow: hidden;
+}
+.mp-cat { font-size: 11px; color: var(--point-dark); font-weight: 600; margin-bottom: 3px; }
+.mp-name { font-size: 15px; font-weight: 700; margin-bottom: 3px; }
+.mp-addr { font-size: 11.5px; color: var(--text-muted); margin-bottom: 10px; line-height: 1.5; }
+.mp-tags { display: flex; gap: 5px; flex-wrap: wrap; margin-bottom: 10px; }
+.mp-tag {
+  font-size: 10.5px; padding: 3px 8px; border-radius: 20px;
+  background: var(--point-light); color: var(--point-dark); font-weight: 600;
+}
+.mp-btn {
+  width: 100%; background: var(--point); color: #fff; border: none;
+  border-radius: 8px; padding: 9px; font-family: 'Noto Sans KR', sans-serif;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: background 0.15s;
+}
+.mp-btn:hover { background: var(--point-dark); }
+
+/* Toast */
+.toast {
+  position: fixed; bottom: 24px; left: 50%;
+  transform: translateX(-50%) translateY(12px);
+  background: rgba(26,26,26,0.88); color: #fff;
+  padding: 9px 20px; border-radius: 20px; font-size: 13px;
+  z-index: 9999; opacity: 0;
+  transition: all 0.25s cubic-bezier(0.34,1.56,0.64,1);
+  pointer-events: none; white-space: nowrap;
+  backdrop-filter: blur(4px);
+}
+.toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* Custom Naver pin */
+.naver-pin {
+  width: 40px; height: 48px; position: relative; cursor: pointer;
+}
+.naver-pin svg { width: 100%; height: 100%; filter: drop-shadow(0 3px 6px rgba(0,0,0,0.22)); }
+
+/* Map fallback */
+.map-fallback {
+  width: 100%; height: 100%; background: #ede8df;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column; gap: 16px;
+}
+.mf-box {
+  background: #fff; border-radius: 16px; padding: 24px 28px;
+  width: 340px; display: flex; flex-direction: column; gap: 10px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.1);
+}
+.mf-title { font-size: 16px; font-weight: 700; text-align: center; }
+.mf-desc { font-size: 12.5px; color: var(--text-muted); text-align: center; line-height: 1.7; }
+.mf-input {
+  border: 1.5px solid var(--border); border-radius: 8px;
+  padding: 9px 12px; font-family: 'Noto Sans KR',sans-serif; font-size: 13px; outline: none;
+  transition: border-color 0.15s;
+}
+.mf-input:focus { border-color: var(--point); }
+.mf-btn {
+  background: var(--point); color: #fff; border: none; border-radius: 8px;
+  padding: 10px; font-family: 'Noto Sans KR',sans-serif; font-size: 13.5px;
+  font-weight: 700; cursor: pointer; transition: background 0.15s;
+}
+.mf-btn:hover { background: var(--point-dark); }
+.mf-hint { font-size: 11px; color: var(--text-muted); text-align: center; }
+.mf-hint a { color: var(--point-dark); }
+.fchip {
+  padding:6px 13px; border-radius:20px; border:1.5px solid #ddd;
+  background:#fff; font-family:'Noto Sans KR',sans-serif; font-size:12px;
+  color:#666; cursor:pointer; transition:all 0.15s; font-weight:500;
+}
+.fchip.on { background:var(--point); border-color:var(--point); color:#fff; font-weight:700; }
+.fcheck {
+  display:flex; align-items:flex-start; gap:9px; padding:9px 11px;
+  border:1.5px solid #ebebeb; border-radius:9px; cursor:pointer; transition:all 0.15s;
+}
+.fcheck.on { border-color:var(--point); background:var(--point-xlight); }
+.fcbox {
+  width:17px; height:17px; border:2px solid #ddd; border-radius:4px;
+  display:flex; align-items:center; justify-content:center;
+  font-size:10px; flex-shrink:0; margin-top:1px; transition:all 0.15s; color:transparent;
+}
+.fcheck.on .fcbox { background:var(--point); border-color:var(--point); color:#fff; }
+.leaflet-pane { z-index: 1 !important; }
+.leaflet-top, .leaflet-bottom { z-index: 500 !important; }
+.map-filter-bar { z-index: 99999 !important; }
+.map-popup { z-index: 99999 !important; }
+.map-ctrl-group { z-index: 99999 !important; }
+
+.fav-cat-btn {
+  padding: 7px 14px;
+  border-radius: 20px;
+  border: 1.5px solid #e8e8e8;
+  background: #fff;
+  font-family: 'Noto Sans KR', sans-serif;
+  font-size: 12.5px;
+  color: #666;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s;
+  font-weight: 500;
+  flex-shrink: 0;
+}
+.fav-cat-btn:hover { border-color: #d49e5e; color: #b8803e; }
+.fav-cat-btn.active { background: #d49e5e; border-color: #d49e5e; color: #fff; font-weight: 700; }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <a class="nav-logo" href="#">
+    <svg width="30" height="30" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+      <ellipse cx="50" cy="64" rx="26" ry="22" fill="#d49e5e"/>
+      <ellipse cx="24" cy="40" rx="10" ry="13" fill="#d49e5e"/>
+      <ellipse cx="39" cy="30" rx="10" ry="13" fill="#d49e5e"/>
+      <ellipse cx="61" cy="30" rx="10" ry="13" fill="#d49e5e"/>
+      <ellipse cx="76" cy="40" rx="10" ry="13" fill="#d49e5e"/>
+      <ellipse cx="50" cy="64" rx="18" ry="15" fill="#b8803e" opacity="0.4"/>
+    </svg>
+    댕댕여지도
+  </a>
+  <div class="nav-links">
+    <a class="nav-link" href="#" onclick="showFavPage();return false;">즐겨찾기</a>
+
+  </div>
+  <button class="nav-login" onclick="authToken ? showMyPage() : showLoginModal()">마이페이지</button>
+</nav>
+
+<!-- BODY -->
+<div class="body-wrap">
+
+  <!-- SIDEBAR -->
+  <div class="sidebar">
+
+    <!-- 검색 -->
+    <div class="sidebar-search">
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input type="text" id="searchInput" placeholder="댕댕여지도 검색" oninput="handleSearch()">
+      </div>
+    </div>
+
+    <!-- 위치 -->
+    <div class="sidebar-location">
+      <span class="loc-icon">📍</span>
+      <span id="locationLabel">내 위치 확인 중...</span>
+    </div>
+
+    <!-- 필터 패널 (숨김) -->
+    <div id="filterPanel" style="display:none; border-bottom:1px solid var(--border); padding:14px; background:#fff;">
+      <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:1px;margin-bottom:10px;">🐕 반려견 크기</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="fchip on" onclick="toggleFchip(this)">🐩 소형견</button>
+        <button class="fchip on" onclick="toggleFchip(this)">🐕 중형견</button>
+        <button class="fchip on" onclick="toggleFchip(this)">🦮 대형견</button>
+        <button class="fchip on" onclick="toggleFchip(this)">🐾 전 견종</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:1px;margin-bottom:10px;">🏠 동반 공간</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px;">
+        <button class="fchip on" onclick="toggleFchip(this)">🏠 실내</button>
+        <button class="fchip on" onclick="toggleFchip(this)">☀️ 테라스</button>
+        <button class="fchip on" onclick="toggleFchip(this)">🌿 야외</button>
+      </div>
+      <div style="font-size:11px;font-weight:700;color:#999;letter-spacing:1px;margin-bottom:10px;">📋 세부 규정</div>
+      <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:14px;">
+        <div class="fcheck" onclick="toggleFcheck(this)"><div class="fcbox"></div><div><div style="font-size:12.5px;font-weight:500;">🔓 케이지 불필요</div><div style="font-size:11px;color:#999;">케이지 없이 입장 가능</div></div></div>
+        <div class="fcheck" onclick="toggleFcheck(this)"><div class="fcbox"></div><div><div style="font-size:12.5px;font-weight:500;">🔒 케이지 필수</div><div style="font-size:11px;color:#999;">케이지 지참 필요</div></div></div>
+        <div class="fcheck" onclick="toggleFcheck(this)"><div class="fcbox"></div><div><div style="font-size:12.5px;font-weight:500;">🌿 운동장 보유</div><div style="font-size:11px;color:#999;">실외 자유 활동 공간</div></div></div>
+        <div class="fcheck" onclick="toggleFcheck(this)"><div class="fcbox"></div><div><div style="font-size:12.5px;font-weight:500;">🛒 개모차 대여</div><div style="font-size:11px;color:#999;">펫카트 현장 대여</div></div></div>
+        <div class="fcheck" onclick="toggleFcheck(this)"><div class="fcbox"></div><div><div style="font-size:12.5px;font-weight:500;">🦴 펫푸드 판매</div><div style="font-size:11px;color:#999;">강아지 전용 간식·음료</div></div></div>
+        <div class="fcheck" onclick="toggleFcheck(this)"><div class="fcbox"></div><div><div style="font-size:12.5px;font-weight:500;">🏥 24시간 운영</div><div style="font-size:11px;color:#999;">24시간 이용 가능</div></div></div>
+        <div class="fcheck" onclick="toggleFcheck(this)"><div class="fcbox"></div><div><div style="font-size:12.5px;font-weight:500;">🐩 소형견 전용구역</div><div style="font-size:11px;color:#999;">소형견 분리 공간 보유</div></div></div>
+        <div class="fcheck" onclick="toggleFcheck(this)"><div class="fcbox"></div><div><div style="font-size:12.5px;font-weight:500;">🦮 대형견 전용구역</div><div style="font-size:11px;color:#999;">대형견 전용 넓은 공간</div></div></div>
+      </div>
+      <button onclick="applyFchip()" style="width:100%;background:var(--point);color:#fff;border:none;border-radius:8px;padding:11px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">✅ 필터 적용</button>
+    </div>
+
+    <!-- 주변 -->
+    <div class="sidebar-section-label" id="sectionLabel">주변</div>
+
+    <!-- 장소 목록 -->
+    <div class="place-list" id="placeList"></div>
+
+  </div>
+
+  <!-- 상세 패널 (네이버지도 스타일) -->
+  <div class="detail-panel" id="detailPanel">
+    <div style="height:52px;background:#fff;border-bottom:1px solid #ebebeb;display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;position:relative;">
+      <button onclick="closeDetailPage()" style="border:none;background:none;font-size:20px;cursor:pointer;color:#555;padding:4px 8px;border-radius:6px;">←</button>
+      <span id="detailPageTitle" style="font-size:15px;font-weight:700;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"></span>
+      <span id="detailFavBtn" onclick="toggleFavDetail()" style="font-size:22px;cursor:pointer;">🤍</span>
+    </div>
+    <div style="flex:1;overflow-y:auto;" id="detailScroll">
+      <!-- 이미지 슬라이더 -->
+      <div style="position:relative;width:100%;height:220px;background:#f5e6ce;overflow:hidden;" id="sliderWrap">
+        <div id="sliderTrack" style="display:flex;height:100%;transition:transform 0.35s cubic-bezier(0.4,0,0.2,1);"></div>
+        <button onclick="slideImg(-1)" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.35);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;">‹</button>
+        <button onclick="slideImg(1)" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:rgba(0,0,0,0.35);border:none;color:#fff;width:32px;height:32px;border-radius:50%;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;z-index:10;">›</button>
+        <div id="sliderDots" style="position:absolute;bottom:10px;left:50%;transform:translateX(-50%);display:flex;gap:6px;z-index:10;"></div>
+      </div>
+      <div style="padding:18px;">
+        <div id="detailCat" style="font-size:12px;color:#d49e5e;font-weight:700;margin-bottom:4px;"></div>
+        <div id="detailName" style="font-size:20px;font-weight:900;margin-bottom:6px;letter-spacing:-0.5px;"></div>
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+          <span id="detailRating" style="font-size:14px;color:#d49e5e;font-weight:700;"></span>
+          <span id="detailDist" style="font-size:13px;color:#999;"></span>
+        </div>
+        <div id="detailTags" style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:16px;"></div>
+        <div style="background:#fdf8f2;border-radius:12px;padding:14px;margin-bottom:20px;display:flex;flex-direction:column;gap:10px;">
+          <div style="display:flex;gap:10px;align-items:center;font-size:13px;">
+            <span style="color:#d49e5e;font-size:16px;">📍</span>
+            <span id="detailAddr" style="color:#444;"></span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;font-size:13px;">
+            <span style="color:#d49e5e;font-size:16px;">📞</span>
+            <span id="detailPhone" style="color:#444;"></span>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center;font-size:13px;">
+            <span style="color:#d49e5e;font-size:16px;">🕐</span>
+            <span id="detailHours" style="color:#444;"></span>
+          </div>
+        </div>
+        <!-- 리뷰 작성 -->
+        <div style="margin-bottom:20px;">
+          <div style="font-size:15px;font-weight:700;margin-bottom:12px;">✍️ 리뷰 작성</div>
+          <div style="font-size:13px;color:#666;margin-bottom:8px;">별점</div>
+          <div id="starRow" style="display:flex;gap:6px;margin-bottom:12px;">
+            <span class="dstar" onclick="setStar(1)" style="font-size:28px;cursor:pointer;color:#ddd;transition:all 0.1s;">★</span>
+            <span class="dstar" onclick="setStar(2)" style="font-size:28px;cursor:pointer;color:#ddd;transition:all 0.1s;">★</span>
+            <span class="dstar" onclick="setStar(3)" style="font-size:28px;cursor:pointer;color:#ddd;transition:all 0.1s;">★</span>
+            <span class="dstar" onclick="setStar(4)" style="font-size:28px;cursor:pointer;color:#ddd;transition:all 0.1s;">★</span>
+            <span class="dstar" onclick="setStar(5)" style="font-size:28px;cursor:pointer;color:#ddd;transition:all 0.1s;">★</span>
+          </div>
+          <textarea id="reviewText" placeholder="이 장소는 어떠셨나요? 솔직한 리뷰를 남겨주세요 🐾" style="width:100%;height:90px;border:1.5px solid #e8e8e8;border-radius:10px;padding:11px 13px;font-family:'Noto Sans KR',sans-serif;font-size:13px;resize:none;outline:none;color:#333;transition:border-color 0.15s;" onfocus="this.style.borderColor='#d49e5e'" onblur="this.style.borderColor='#e8e8e8'"></textarea>
+          <div style="display:flex;justify-content:flex-end;margin-top:8px;">
+            <button onclick="submitReview()" style="background:#d49e5e;color:#fff;border:none;border-radius:9px;padding:10px 22px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:700;cursor:pointer;" onmouseover="this.style.background='#b8803e'" onmouseout="this.style.background='#d49e5e'">등록하기</button>
+          </div>
+        </div>
+        <!-- 리뷰 목록 -->
+        <div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:12px;" id="reviewCountLabel">💬 리뷰</div>
+          <div id="reviewList" style="display:flex;flex-direction:column;gap:0;"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MAP -->
+  <div class="map-area">
+
+    <!-- 카테고리 칩 -->
+    <div class="map-filter-bar" id="favFilterBar">
+      <button class="map-chip active" id="chip-all" onclick="toggleFilterPanel(this)">
+        <span class="map-chip-icon">▼</span> 애견조건
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'all')">
+        <span class="map-chip-icon">🐾</span> 전체
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'restaurant')">
+        <span class="map-chip-icon">🍽</span> 음식점
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'cafe')">
+        <span class="map-chip-icon">☕</span> 카페
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'vet')">
+        <span class="map-chip-icon">🏥</span> 동물병원
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'pharmacy')">
+        <span class="map-chip-icon">💊</span> 동물약국
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'culture')">
+        <span class="map-chip-icon">🏛</span> 문화시설
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'stay')">
+        <span class="map-chip-icon">🏨</span> 숙소
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'grooming')">
+        <span class="map-chip-icon">✂️</span> 미용
+      </button>
+      <button class="map-chip" onclick="filterCat(this,'supplies')">
+        <span class="map-chip-icon">🛍</span> 반려용품
+      </button>
+    </div>
+
+    <!-- 지도 어둡게 오버레이 -->
+    <div id="mapOverlay" style="display:none;position:absolute;inset:0;background:rgba(0,0,0,0.35);z-index:50;pointer-events:none;transition:opacity 0.3s;"></div>
+    <!-- 카카오 지도 -->
+    <div id="kakaoMap" style="width:100%;height:100%;"></div>
+
+    <!-- 지도 컨트롤 -->
+    <div class="map-ctrl-group">
+      <button class="map-ctrl-btn" onclick="moveToMyLocation()" title="내 위치">📍</button>
+      <button class="map-ctrl-btn" onclick="zoomIn()" title="확대">＋</button>
+      <button class="map-ctrl-btn" onclick="zoomOut()" title="축소">－</button>
+    </div>
+
+    <!-- 팝업 -->
+    <div class="map-popup" id="mapPopup">
+      <span class="mp-close" onclick="closePopup()">✕</span>
+      <div class="mp-img" id="mpImg"></div>
+      <div class="mp-cat" id="mpCat"></div>
+      <div class="mp-name" id="mpName"></div>
+      <div class="mp-addr" id="mpAddr"></div>
+      <div class="mp-tags" id="mpTags"></div>
+      <button class="mp-btn" onclick="goDetail()">상세 정보 보기</button>
+    </div>
+
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
+
+<script>
+/* ── DATA ── */
+const places = []
+
+let map = null;
+let markers = [];
+let currentCat = 'all';
+let activeFilters = { sizes: [], spaces: [], checks: [] };
+let activePlaceId = null;
+
+/* ── SIDEBAR RENDER ── */
+function renderList(list) {
+  const el = document.getElementById('placeList');
+  el.innerHTML = '';
+  if (!list.length) {
+    el.innerHTML = '<div style="padding:30px;text-align:center;color:#aaa;font-size:13px">검색 결과가 없어요 🐾</div>';
+    return;
+  }
+  list.forEach(p => {
+    const div = document.createElement('div');
+    div.className = 'place-card' + (activePlaceId === p.id ? ' active' : '');
+  div.onclick = () => { selectPlace(p.id); openDetailPage(p.id); };
+    div.innerHTML = `
+      <div class="place-img">
+        ${p.img ? `<img src="${p.img}" alt="${p.name}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='<div class=\\'place-img-placeholder\\'>${p.emoji}</div>'">`  : `<div class="place-img-placeholder">${p.emoji}</div>`}
+      </div>
+      <div class="place-info">
+        <div class="place-category">${p.catLabel}</div>
+        <div class="place-name">${p.name}</div>
+        <div class="place-desc">${p.desc}</div>
+        <div class="place-meta">
+          <span class="place-rating">★ ${p.rating}</span>
+          <span class="place-dist">${p.dist}</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:5px;">
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            ${p.tags.slice(0,2).map(t => `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#f5e6ce;color:#b8803e;font-weight:600;">${t}</span>`).join('')}
+          </div>
+          <span onclick="event.stopPropagation();toggleFav(${p.id})" style="font-size:18px;cursor:pointer;flex-shrink:0;">${favPlaces.includes(p.id)?'💛':'🤍'}</span>
+        </div>
+      </div>`;
+    el.appendChild(div);
+  });
+}
+
+/* ── SEARCH ── */
+function handleSearch() {
+  const q = document.getElementById('searchInput').value.toLowerCase().trim();
+  const filtered = getFilteredBycat().filter(p =>
+    !q || p.name.includes(q) || p.addr.includes(q) || p.desc.includes(q)
+  );
+  renderList(filtered);
+}
+
+function getFilteredBycat() {
+  let list = currentCat === 'all' ? places : places.filter(p => p.cat === currentCat);
+
+  // 크기 필터 - 4개 미만 선택 시에만 적용
+  if (activeFilters.sizes && activeFilters.sizes.length > 0 && activeFilters.sizes.length < 4) {
+    list = list.filter(p => {
+      const tags = (p.tags || []).join(',');
+      if (!tags) return false;
+      return activeFilters.sizes.some(s => tags.includes(s));
+    });
+  }
+
+  // 공간 필터 - 3개 미만 선택 시에만 적용
+  if (activeFilters.spaces && activeFilters.spaces.length > 0 && activeFilters.spaces.length < 3) {
+    list = list.filter(p => {
+      const tags = (p.tags || []).join(',');
+      if (!tags) return false;
+      return activeFilters.spaces.some(s => tags.includes(s));
+    });
+  }
+
+  // 세부 규정 필터 - 항상 적용, 체크된 것 모두 포함해야 함
+  if (activeFilters.checks && activeFilters.checks.length > 0) {
+    list = list.filter(p => {
+      const tags = (p.tags || []).join(',');
+      if (!tags) return false;
+      return activeFilters.checks.every(c => tags.includes(c));
+    });
+  }
+
+  return list;
+}
+
+/* ── CATEGORY FILTER ── */
+function filterCat(btn, cat) {
+  document.querySelectorAll('.map-chip').forEach(c => c.classList.remove('active'));
+  btn.classList.add('active');
+  currentCat = cat;
+  updateMapView();
+}
+
+/* ── SELECT PLACE ── */
+function selectPlace(id) {
+  activePlaceId = id;
+  const p = places.find(x => x.id === id);
+  renderList(getFilteredBycat());
+
+  if (map) {
+    map.setCenter(new kakao.maps.LatLng(p.lat, p.lng));
+    map.setLevel(4);
+  }
+
+  // Scroll sidebar card into view
+  const cards = document.querySelectorAll('.place-card');
+  const idx = getFilteredBycat().findIndex(x => x.id === id);
+  if (cards[idx]) cards[idx].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+/* ── MAP POPUP ── */
+function showMapPopup(p) {
+  document.getElementById('mpImg').innerHTML = `<img src="${p.img}" style="width:100%;height:100%;object-fit:cover;border-radius:8px;" onerror="this.parentElement.innerHTML='<div style=\\'display:flex;align-items:center;justify-content:center;font-size:36px;height:100%;background:var(--point-light);border-radius:8px;\\'>${p.emoji}</div>'">`;
+  document.getElementById('mpCat').textContent = p.catLabel;
+  document.getElementById('mpName').textContent = p.name;
+  document.getElementById('mpAddr').textContent = '📍 ' + p.addr;
+  document.getElementById('mpTags').innerHTML = p.tags.map(t => `<span class="mp-tag">${t}</span>`).join('');
+  const popup = document.getElementById('mapPopup');
+  popup.classList.add('show');
+  popup.style.bottom = '80px';
+  popup.style.left = '14px';
+}
+
+function closePopup() {
+  document.getElementById('mapPopup').classList.remove('show');
+  activePlaceId = null;
+  renderList(getFilteredBycat());
+}
+
+function goDetail() {
+  showToast('상세 페이지로 이동합니다 🐾');
+  closePopup();
+}
+
+/* ── KAKAO MAP ── */
+function initMap() {
+  const container = document.getElementById('kakaoMap');
+  const options = {
+    center: new kakao.maps.LatLng(36.5, 127.8),
+    level: 13
+  };
+  map = new kakao.maps.Map(container, options);
+
+  // 지도 클릭 시 팝업 닫기
+  kakao.maps.event.addListener(map, 'click', () => closePopup());
+
+  // 지도 이동/줌 끝날 때 장소 다시 로드
+  kakao.maps.event.addListener(map, 'idle', updateMapView);
+
+  loadPlacesFromAPI();
+
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(pos => {
+      const { latitude: lat, longitude: lng } = pos.coords;
+      const locPos = new kakao.maps.LatLng(lat, lng);
+      map.setCenter(locPos);
+      map.setLevel(4);
+      document.getElementById('locationLabel').textContent = '내 주변';
+
+      // 내 위치 파란 점
+      new kakao.maps.CustomOverlay({
+        position: locPos,
+        content: `<div style="width:18px;height:18px;background:#4A9EE8;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(74,158,232,0.3),0 2px 8px rgba(0,0,0,0.2);"></div>`,
+        zIndex: 999
+      }).setMap(map);
+    }, () => {
+      document.getElementById('locationLabel').textContent = '송파구 오륜동';
+    });
+  } else {
+    document.getElementById('locationLabel').textContent = '송파구 오륜동';
+  }
+}
+
+function renderMarkers(list) {
+  markers.forEach(m => m.setMap(null));
+  markers = [];
+
+  list.forEach(p => {
+    const el = document.createElement('div');
+    el.style.cssText = 'width:40px;height:40px;background:#d49e5e;border-radius:50% 50% 50% 0;transform:rotate(-45deg);display:flex;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(212,158,94,0.5);border:2.5px solid #fff;cursor:pointer;';
+    const span = document.createElement('span');
+    span.style.cssText = 'transform:rotate(45deg);font-size:18px;line-height:1;';
+    span.textContent = '🐾';
+    el.appendChild(span);
+
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      activePlaceId = p.id;
+      renderList(getFilteredBycat());
+      openDetailPage(p.id);
+    });
+
+    const overlay = new kakao.maps.CustomOverlay({
+      position: new kakao.maps.LatLng(p.lat, p.lng),
+      content: el,
+      zIndex: 3
+    });
+    overlay.setMap(map);
+    markers.push(overlay);
+  });
+}
+
+let myLocationOverlay = null;
+
+function moveToMyLocation() {
+  if (!map) return;
+  showToast('📍 위치를 찾는 중...');
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    const locPos = new kakao.maps.LatLng(lat, lng);
+
+    map.setCenter(locPos);
+    map.setLevel(4);
+
+    if (myLocationOverlay) myLocationOverlay.setMap(null);
+    myLocationOverlay = new kakao.maps.CustomOverlay({
+      position: locPos,
+      content: `<div style="width:18px;height:18px;background:#4A9EE8;border-radius:50%;border:3px solid #fff;box-shadow:0 0 0 4px rgba(74,158,232,0.3),0 2px 8px rgba(0,0,0,0.2);"></div>`,
+      zIndex: 999
+    });
+    myLocationOverlay.setMap(map);
+
+    document.getElementById('locationLabel').textContent = '내 주변';
+    showToast('📍 현재 위치로 이동했어요!');
+  }, (err) => {
+    if (err.code === 1) showToast('❌ 위치 권한을 허용해주세요');
+    else showToast('❌ 위치를 가져올 수 없어요');
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+function zoomIn() { if (map) map.setLevel(map.getLevel() - 1); }
+function zoomOut() { if (map) map.setLevel(map.getLevel() + 1); }
+
+/* ── TOAST ── */
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2300);
+}
+
+/* ── FILTER PANEL ── */
+function toggleFilterPanel(btn) {
+  const panel = document.getElementById('filterPanel');
+  const label = document.getElementById('sectionLabel');
+  const overlay = document.getElementById('mapOverlay');
+  const isOpen = panel.style.display !== 'none';
+  if (isOpen) {
+    panel.style.display = 'none';
+    label.style.display = '';
+    overlay.style.display = 'none';
+    btn.classList.remove('active');
+  } else {
+    panel.style.display = 'block';
+    label.style.display = 'none';
+    overlay.style.display = 'block';
+    btn.classList.add('active');
+    document.querySelectorAll('.map-chip:not(#chip-all)').forEach(c => c.classList.remove('active'));
+  }
+}
+
+function toggleFchip(el) { el.classList.toggle('on'); }
+function toggleFcheck(el) {
+  el.classList.toggle('on');
+  el.querySelector('.fcbox').textContent = el.classList.contains('on') ? '✓' : '';
+}
+function getActiveFilters() {
+  const sizes = [];
+  document.querySelectorAll('#filterPanel .fchip.on').forEach(el => {
+    const t = el.textContent.trim();
+    if (t.includes('소형견')) sizes.push('소형견 가능');
+    if (t.includes('중형견')) sizes.push('중형견 가능');
+    if (t.includes('대형견')) sizes.push('대형견 가능');
+    if (t.includes('전 견종')) sizes.push('전 견종');
+  });
+
+  const spaces = [];
+  document.querySelectorAll('#filterPanel .fchip.on').forEach(el => {
+    const t = el.textContent.trim();
+    if (t.includes('실내')) spaces.push('실내');
+    if (t.includes('테라스')) spaces.push('테라스');
+    if (t.includes('야외')) spaces.push('야외');
+  });
+
+  const checks = [];
+  document.querySelectorAll('#filterPanel .fcheck.on').forEach(el => {
+    const t = el.textContent.trim();
+    if (t.includes('케이지 불필요')) checks.push('케이지 불필요');
+    if (t.includes('케이지 필수') && !t.includes('불필요')) checks.push('케이지 필수');
+    if (t.includes('운동장')) checks.push('운동장 보유');
+    if (t.includes('개모차')) checks.push('개모차 대여');
+    if (t.includes('펫푸드')) checks.push('펫푸드 판매');
+    if (t.includes('24시간')) checks.push('24시간');
+    if (t.includes('소형견 전용구역')) checks.push('소형견 전용구역');
+    if (t.includes('대형견 전용구역')) checks.push('대형견 전용구역');
+  });
+
+  return { sizes, spaces, checks };
+}
+
+function applyFchip() {
+  // 패널 숨기기 전에 먼저 필터값 읽기
+  activeFilters = getActiveFilters();
+
+  document.getElementById('filterPanel').style.display = 'none';
+  document.getElementById('sectionLabel').style.display = '';
+  document.getElementById('mapOverlay').style.display = 'none';
+  document.getElementById('chip-all').classList.remove('active');
+
+  const filtered = getFilteredBycat();
+  renderList(filtered);
+  renderMarkers(filtered);
+  showToast('✅ 필터가 적용되었습니다!');
+}
+
+
+
+
+/* ── MYPAGE ── */
+let totalReviews = 0;
+
+async function showMyPage() {
+  document.getElementById('myPage').style.display = 'flex';
+  document.getElementById('favFilterBar').style.display = 'none';
+  document.getElementById('mpFavCount').textContent = favPlaces.length;
+
+  // 실제 유저 정보 가져오기
+  if (authToken) {
+    try {
+      const [userRes, reviewRes] = await Promise.all([
+        fetch(`${API_URL}/auth/me`, { headers: { 'Authorization': `Bearer ${authToken}` } }),
+        fetch(`${API_URL}/reviews/my`, { headers: { 'Authorization': `Bearer ${authToken}` } })
+      ]);
+
+      const user = await userRes.json();
+      const reviews = await reviewRes.json();
+
+      document.getElementById('mpReviewCount').textContent = Array.isArray(reviews) ? reviews.length : 0;
+      document.getElementById('mpNickname').textContent = user.nickname || '';
+      document.getElementById('mpPetSub').textContent = [user.petName, user.petBreed, user.petAge ? user.petAge + '살' : ''].filter(Boolean).join(' · ');
+      document.getElementById('mpPetName').textContent = user.petName || '-';
+      document.getElementById('mpPetBreed').textContent = user.petBreed || '-';
+      document.getElementById('mpPetAge').textContent = user.petAge ? user.petAge + '살' : '-';
+      document.getElementById('mpPetSize').textContent = user.petSize || '-';
+      document.getElementById('mpPetSizeIcon').textContent = user.petSize === '대형' ? '🐕' : user.petSize === '중형' ? '🐩' : '🐾';
+      document.getElementById('mpPetSizeLabel').textContent = user.petSize || '-';
+    } catch(e) {
+      console.error('마이페이지 로드 실패', e);
+    }
+  }
+}
+
+function closeMyPage() {
+  document.getElementById('myPage').style.display = 'none';
+  document.getElementById('favFilterBar').style.display = 'flex';
+}
+
+async function showMyReviews() {
+  if (!authToken) { showToast('로그인 후 이용할 수 있어요 🔐'); showLoginModal(); return; }
+  const page = document.getElementById('myReviewPage');
+  const list = document.getElementById('myReviewList');
+  page.style.display = 'flex';
+  list.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px;">불러오는 중...</div>';
+
+  try {
+    const res = await fetch(`${API_URL}/reviews/my`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const myReviews = await res.json();
+
+    if (!Array.isArray(myReviews) || !myReviews.length) {
+      list.innerHTML = `<div style="padding:40px;text-align:center;color:#aaa;">
+        <div style="font-size:40px;margin-bottom:12px;">✍️</div>
+        <div style="font-size:14px;font-weight:600;color:#555;margin-bottom:6px;">아직 작성한 리뷰가 없어요</div>
+        <div style="font-size:12px;">장소를 방문하고 첫 리뷰를 남겨보세요!</div>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = myReviews.map(r => `
+      <div style="padding:16px 0;border-bottom:1px solid #f5f5f5;" id="myreview-${r.id}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <span style="font-size:13px;font-weight:700;color:#d49e5e;">${r.placeName || '장소'}</span>
+          <span style="font-size:11px;color:#aaa;">${r.createdAt ? r.createdAt.substring(0,10) : ''}</span>
+        </div>
+        <div style="color:#d49e5e;font-size:14px;margin-bottom:6px;">${'★'.repeat(r.stars||0)}${'☆'.repeat(5-(r.stars||0))}</div>
+        <div style="font-size:13px;color:#555;line-height:1.65;margin-bottom:10px;">${r.content || ''}</div>
+        <div style="display:flex;gap:6px;">
+          <button onclick="openReviewEdit(${r.id}, ${r.stars}, \`${(r.content||'').replace(/`/g,"'")}\`)" style="font-size:12px;padding:5px 12px;border-radius:7px;border:1px solid #d49e5e;color:#d49e5e;background:#fff;cursor:pointer;font-weight:600;">수정</button>
+          <button onclick="deleteMyReview(${r.id})" style="font-size:12px;padding:5px 12px;border-radius:7px;border:1px solid #e0e0e0;color:#999;background:#fff;cursor:pointer;">삭제</button>
+        </div>
+      </div>`).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="padding:24px;text-align:center;color:#aaa;font-size:13px;">리뷰를 불러올 수 없어요</div>';
+  }
+}
+
+function closeMyReviewPage() {
+  document.getElementById('myReviewPage').style.display = 'none';
+}
+
+function showVisitHistory() {
+  const page = document.getElementById('visitHistoryPage');
+  const list = document.getElementById('visitHistoryList');
+  page.style.display = 'flex';
+
+  const history = JSON.parse(localStorage.getItem('visitHistory') || '[]');
+
+  if (!history.length) {
+    list.innerHTML = `<div style="padding:40px;text-align:center;color:#aaa;">
+      <div style="font-size:40px;margin-bottom:12px;">📍</div>
+      <div style="font-size:14px;font-weight:600;color:#555;margin-bottom:6px;">아직 방문한 장소가 없어요</div>
+      <div style="font-size:12px;">장소를 클릭하면 자동으로 기록돼요!</div>
+    </div>`;
+    return;
+  }
+
+  list.innerHTML = history.map(v => `
+    <div onclick="goToVisited(${v.id})" style="display:flex;align-items:center;gap:12px;padding:13px 0;border-bottom:1px solid #f5f5f5;cursor:pointer;">
+      <div style="width:48px;height:48px;border-radius:10px;overflow:hidden;background:#f5e6ce;flex-shrink:0;display:flex;align-items:center;justify-content:center;">
+        ${v.img
+          ? `<img src="${v.img}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<span style=\\'font-size:22px;\\'>${v.emoji}</span>'">`
+          : `<span style="font-size:22px;">${v.emoji}</span>`}
+      </div>
+      <div style="flex:1;min-width:0;">
+        <div style="font-size:11px;color:#d49e5e;font-weight:700;margin-bottom:2px;">${v.catLabel}</div>
+        <div style="font-size:14px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${v.name}</div>
+        <div style="font-size:11px;color:#aaa;margin-top:2px;">📍 ${v.addr}</div>
+      </div>
+      <div style="font-size:11px;color:#bbb;flex-shrink:0;text-align:right;">${formatVisitDate(v.visitedAt)}</div>
+    </div>`).join('');
+}
+
+function closeVisitHistoryPage() {
+  document.getElementById('visitHistoryPage').style.display = 'none';
+}
+
+function clearVisitHistory() {
+  if (!confirm('방문 기록을 모두 삭제할까요?')) return;
+  localStorage.removeItem('visitHistory');
+  showVisitHistory();
+  showToast('방문 기록이 삭제됐어요');
+}
+
+function goToVisited(id) {
+  closeVisitHistoryPage();
+  closeMyPage();
+  const p = places.find(x => x.id === id);
+  if (p) { selectPlace(id); openDetailPage(id); }
+  else showToast('지도에서 해당 장소를 찾아주세요');
+}
+
+function openReviewEdit(id, stars, content) {
+  const div = document.getElementById(`myreview-${id}`);
+  if (!div) return;
+  div.innerHTML = `
+    <div style="padding:8px 0;">
+      <div style="display:flex;gap:4px;margin-bottom:8px;" id="editStarRow-${id}">
+        ${[1,2,3,4,5].map(i => `<span onclick="setEditStar(${id},${i})" style="font-size:24px;cursor:pointer;color:${i<=stars?'#d49e5e':'#ddd'};">★</span>`).join('')}
+      </div>
+      <textarea id="editContent-${id}" style="width:100%;height:70px;border:1.5px solid #e8e8e8;border-radius:8px;padding:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;resize:none;outline:none;box-sizing:border-box;">${content}</textarea>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button onclick="submitReviewEdit(${id})" style="font-size:11px;padding:5px 12px;border-radius:6px;background:#d49e5e;color:#fff;border:none;cursor:pointer;font-weight:700;">저장</button>
+        <button onclick="showMyReviews()" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid #ddd;color:#999;background:#fff;cursor:pointer;">취소</button>
+      </div>
+    </div>`;
+  div._editStars = stars;
+}
+
+function setEditStar(id, n) {
+  const div = document.getElementById(`myreview-${id}`);
+  if (!div) return;
+  div._editStars = n;
+  const row = document.getElementById(`editStarRow-${id}`);
+  row.querySelectorAll('span').forEach((s, i) => s.style.color = i < n ? '#d49e5e' : '#ddd');
+}
+
+async function submitReviewEdit(id) {
+  const div = document.getElementById(`myreview-${id}`);
+  const stars = div._editStars || 0;
+  const content = document.getElementById(`editContent-${id}`).value.trim();
+  if (!content) { showToast('리뷰 내용을 입력해주세요'); return; }
+  try {
+    const res = await fetch(`${API_URL}/reviews/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ stars, content })
+    });
+    if (res.ok) { showToast('리뷰가 수정됐어요! ✏️'); showMyReviews(); }
+    else showToast('수정 실패 ❌');
+  } catch(e) { showToast('수정 실패 ❌'); }
+}
+
+async function deleteMyReview(id) {
+  if (!confirm('리뷰를 삭제할까요?')) return;
+  try {
+    const res = await fetch(`${API_URL}/reviews/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (res.ok) { showToast('리뷰가 삭제됐어요'); showMyReviews(); }
+    else showToast('삭제 실패 ❌');
+  } catch(e) { showToast('삭제 실패 ❌'); }
+}
+
+/* ── DETAIL PAGE ── */
+let currentDetailId = null;
+let currentStars = 0;
+
+function openDetailPage(id) {
+  currentDetailId = id;
+  currentStars = 0;
+  const p = places.find(x => x.id === id);
+  if (!p) return;
+
+  // 방문 기록 저장
+  addVisitHistory(p);
+
+  // 패널 열기
+  document.getElementById('detailPanel').classList.add('open');
+  document.getElementById('detailPageTitle').textContent = p.name;
+
+  // 슬라이더 초기화
+  currentSlide = 0;
+  const track = document.getElementById('sliderTrack');
+  const dots = document.getElementById('sliderDots');
+  track.innerHTML = '';
+  dots.innerHTML = '';
+
+  const imgs = p.imgs && p.imgs.length ? p.imgs : (p.img ? [p.img] : []);
+  if (imgs.length) {
+    imgs.forEach((src, i) => {
+      const slide = document.createElement('div');
+      slide.style.cssText = 'min-width:100%;height:220px;overflow:hidden;flex-shrink:0;';
+      slide.innerHTML = `<img src="${src}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:48px;background:#f5e6ce;\\'>${p.emoji}</div>'">`;
+      track.appendChild(slide);
+      const dot = document.createElement('div');
+      dot.style.cssText = `width:7px;height:7px;border-radius:50%;background:${i===0?'#fff':'rgba(255,255,255,0.5)'};transition:background 0.2s;cursor:pointer;`;
+      dot.onclick = () => goSlide(i);
+      dots.appendChild(dot);
+    });
+  } else {
+    const slide = document.createElement('div');
+    slide.style.cssText = 'min-width:100%;height:220px;overflow:hidden;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:48px;background:#f5e6ce;';
+    slide.textContent = p.emoji;
+    track.appendChild(slide);
+  }
+
+  document.getElementById('detailCat').textContent = p.catLabel;
+  document.getElementById('detailName').textContent = p.name;
+  document.getElementById('detailRating').textContent = '★ ' + p.rating;
+  document.getElementById('detailDist').textContent = p.dist;
+  document.getElementById('detailAddr').textContent = p.addr;
+  document.getElementById('detailPhone').textContent = p.phone || '정보 없음';
+  document.getElementById('detailHours').textContent = p.hours || '정보 없음';
+  document.getElementById('detailFavBtn').textContent = favPlaces.includes(id) ? '💛' : '🤍';
+  document.getElementById('reviewText').value = '';
+
+  const tagsEl = document.getElementById('detailTags');
+  tagsEl.innerHTML = (p.tags || []).map(t => `<span style="font-size:11px;padding:4px 10px;border-radius:20px;background:#f5e6ce;color:#b8803e;font-weight:600;">${t}</span>`).join('');
+
+  document.querySelectorAll('.dstar').forEach(s => s.style.color = '#ddd');
+  renderReviews(p);
+  document.getElementById('detailScroll').scrollTop = 0;
+}
+
+function closeDetailPage() {
+  document.getElementById('detailPanel').classList.remove('open');
+}
+
+function toggleFavDetail() {
+  toggleFav(currentDetailId);
+  document.getElementById('detailFavBtn').textContent = favPlaces.includes(currentDetailId) ? '💛' : '🤍';
+}
+
+function setStar(n) {
+  currentStars = n;
+  document.querySelectorAll('.dstar').forEach((s, i) => {
+    s.style.color = i < n ? '#d49e5e' : '#ddd';
+    s.style.transform = i < n ? 'scale(1.1)' : 'scale(1)';
+  });
+}
+
+async function submitReview() {
+  if (!authToken) { showToast('로그인 후 이용할 수 있어요 🔐'); showLoginModal(); return; }
+  const text = document.getElementById('reviewText').value.trim();
+  if (!currentStars) { showToast('별점을 선택해주세요 ⭐'); return; }
+  if (!text) { showToast('리뷰 내용을 입력해주세요'); return; }
+  if (!currentDetailId) { showToast('장소를 선택해주세요'); return; }
+
+  try {
+    const res = await fetch(`${API_URL}/reviews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ placeId: currentDetailId, stars: currentStars, content: text })
+    });
+
+    if (!res.ok) { showToast('리뷰 등록 실패 ❌'); return; }
+
+    document.getElementById('reviewText').value = '';
+    currentStars = 0;
+    document.querySelectorAll('.dstar').forEach(s => { s.style.color='#ddd'; s.style.transform='scale(1)'; });
+
+    const p = places.find(x => x.id === currentDetailId) || { id: currentDetailId };
+    await renderReviews(p);
+    showToast('리뷰가 등록되었습니다 🐾');
+  } catch(e) {
+    showToast('리뷰 등록 실패 ❌');
+  }
+}
+
+let currentSlide = 0;
+function slideImg(dir) {
+  const p = places.find(x => x.id === currentDetailId);
+  const total = (p.imgs || [p.img]).length;
+  currentSlide = (currentSlide + dir + total) % total;
+  goSlide(currentSlide);
+}
+function goSlide(idx) {
+  currentSlide = idx;
+  document.getElementById('sliderTrack').style.transform = `translateX(-${idx * 100}%)`;
+  document.querySelectorAll('#sliderDots div').forEach((d, i) => {
+    d.style.background = i === idx ? '#fff' : 'rgba(255,255,255,0.5)';
+  });
+}
+
+async function renderReviews(p) {
+  const list = document.getElementById('reviewList');
+  list.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">불러오는 중...</div>';
+
+  try {
+    const res = await fetch(`${API_URL}/reviews/place/${p.id}`);
+    const reviews = await res.json();
+    const myNickname = localStorage.getItem('nickname');
+
+    document.getElementById('reviewCountLabel').textContent = `💬 리뷰 (${reviews.length})`;
+
+    if (!reviews.length) {
+      list.innerHTML = '<div style="text-align:center;padding:30px;color:#aaa;font-size:13px;">첫 번째 리뷰를 남겨보세요!</div>';
+      return;
+    }
+
+    list.innerHTML = reviews.map(r => `
+      <div style="padding:14px 0;border-bottom:1px solid #f0f0f0;" id="review-${r.id}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px;">
+          <span style="font-size:13px;font-weight:700;">${r.nickname}</span>
+          <span style="font-size:11px;color:#aaa;">${r.createdAt ? r.createdAt.substring(0,10) : ''}</span>
+        </div>
+        <div style="color:#d49e5e;font-size:13px;margin-bottom:6px;">${'★'.repeat(r.stars||0)}${'☆'.repeat(5-(r.stars||0))}</div>
+        <div style="font-size:13px;color:#555;line-height:1.65;margin-bottom:${r.nickname===myNickname?'8px':'0'}">${r.content||''}</div>
+        ${r.nickname === myNickname ? `
+        <div style="display:flex;gap:6px;">
+          <button onclick="openDetailReviewEdit(${r.id}, ${r.stars}, \`${(r.content||'').replace(/`/g,"'")}\`, ${p.id})" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #d49e5e;color:#d49e5e;background:#fff;cursor:pointer;">수정</button>
+          <button onclick="deleteDetailReview(${r.id}, ${p.id})" style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #ddd;color:#999;background:#fff;cursor:pointer;">삭제</button>
+        </div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa;font-size:13px;">리뷰를 불러올 수 없어요</div>';
+  }
+}
+
+function openDetailReviewEdit(id, stars, content, placeId) {
+  const div = document.getElementById(`review-${id}`);
+  if (!div) return;
+  div._editStars = stars;
+  div.innerHTML = `
+    <div style="padding:4px 0;">
+      <div style="display:flex;gap:4px;margin-bottom:8px;" id="detailEditStarRow-${id}">
+        ${[1,2,3,4,5].map(i => `<span onclick="setDetailEditStar(${id},${i})" style="font-size:24px;cursor:pointer;color:${i<=stars?'#d49e5e':'#ddd'};">★</span>`).join('')}
+      </div>
+      <textarea id="detailEditContent-${id}" style="width:100%;height:70px;border:1.5px solid #e8e8e8;border-radius:8px;padding:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;resize:none;outline:none;box-sizing:border-box;">${content}</textarea>
+      <div style="display:flex;gap:6px;margin-top:8px;">
+        <button onclick="submitDetailReviewEdit(${id}, ${placeId})" style="font-size:11px;padding:5px 12px;border-radius:6px;background:#d49e5e;color:#fff;border:none;cursor:pointer;font-weight:700;">저장</button>
+        <button onclick="renderReviews(places.find(x=>x.id===${placeId})||{id:${placeId},reviews:[]})" style="font-size:11px;padding:5px 12px;border-radius:6px;border:1px solid #ddd;color:#999;background:#fff;cursor:pointer;">취소</button>
+      </div>
+    </div>`;
+}
+
+function setDetailEditStar(id, n) {
+  const div = document.getElementById(`review-${id}`);
+  if (div) div._editStars = n;
+  const row = document.getElementById(`detailEditStarRow-${id}`);
+  if (row) row.querySelectorAll('span').forEach((s, i) => s.style.color = i < n ? '#d49e5e' : '#ddd');
+}
+
+async function submitDetailReviewEdit(id, placeId) {
+  const div = document.getElementById(`review-${id}`);
+  const stars = div._editStars || 0;
+  const content = document.getElementById(`detailEditContent-${id}`).value.trim();
+  if (!content) { showToast('리뷰 내용을 입력해주세요'); return; }
+  try {
+    const res = await fetch(`${API_URL}/reviews/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${authToken}` },
+      body: JSON.stringify({ stars, content })
+    });
+    if (res.ok) {
+      showToast('리뷰가 수정됐어요! ✏️');
+      const p = places.find(x => x.id === placeId) || { id: placeId };
+      renderReviews(p);
+    } else showToast('수정 실패 ❌');
+  } catch(e) { showToast('수정 실패 ❌'); }
+}
+
+async function deleteDetailReview(id, placeId) {
+  if (!confirm('리뷰를 삭제할까요?')) return;
+  try {
+    const res = await fetch(`${API_URL}/reviews/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    if (res.ok) {
+      showToast('리뷰가 삭제됐어요');
+      const p = places.find(x => x.id === placeId) || { id: placeId };
+      renderReviews(p);
+    } else showToast('삭제 실패 ❌');
+  } catch(e) { showToast('삭제 실패 ❌'); }
+}
+
+/* ── FAV PAGE ── */
+let favPlaces = [];
+
+async function showFavPage() {
+  const page = document.getElementById('favPage');
+  page.style.display = 'flex';
+  document.getElementById('favFilterBar').style.display = 'none';
+
+  // 백엔드에서 즐겨찾기 id 목록 동기화
+  if (authToken) {
+    try {
+      const res = await fetch(`${API_URL}/favorites/my`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      const data = await res.json();
+      favPlaces = (Array.isArray(data) ? data : []).map(p => p.placeId || p.id);
+    } catch(e) {}
+  }
+
+  renderFavPage();
+}
+
+function closeFavPage() {
+  document.getElementById('favPage').style.display = 'none';
+  document.getElementById('favFilterBar').style.display = 'flex'; // 다시 보이기
+}
+
+async function toggleFav(placeId) {
+  if (!authToken) { showToast('로그인 후 이용할 수 있어요 🔐'); showLoginModal(); return; }
+
+  try {
+    const res = await fetch(`${API_URL}/favorites/${placeId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    if (data.isFavorite) {
+      if (!favPlaces.includes(placeId)) favPlaces.push(placeId);
+      showToast('💛 즐겨찾기에 추가했어요!');
+    } else {
+      favPlaces = favPlaces.filter(id => id !== placeId);
+      showToast('즐겨찾기에서 제거했어요');
+    }
+  } catch(e) {
+    // 로컬 fallback
+    const idx = favPlaces.indexOf(placeId);
+    if (idx === -1) { favPlaces.push(placeId); showToast('💛 즐겨찾기에 추가했어요!'); }
+    else { favPlaces.splice(idx, 1); showToast('즐겨찾기에서 제거했어요'); }
+  }
+
+  // 상세 패널 하트 업데이트
+  if (currentDetailId === placeId) {
+    document.getElementById('detailFavBtn').textContent = favPlaces.includes(placeId) ? '💛' : '🤍';
+  }
+  renderList(getFilteredBycat());
+}
+
+let currentFavCat = 'all';
+
+function setFavCat(btn, cat) {
+  document.querySelectorAll('.fav-cat-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  currentFavCat = cat;
+  renderFavPage();
+}
+
+function renderFavPage() {
+  const el = document.getElementById('favPageList');
+
+  document.getElementById('favCount').textContent = `${favPlaces.length}개`;
+
+  if (!favPlaces.length) {
+    el.innerHTML = `<div style="text-align:center;padding:60px 20px;color:#aaa;">
+      <div style="font-size:52px;margin-bottom:12px;">🔖</div>
+      <div style="font-size:15px;font-weight:600;color:#555;margin-bottom:8px;">즐겨찾기한 장소가 없어요</div>
+      <div style="font-size:13px;">마음에 드는 장소에 하트를 눌러보세요!</div>
+    </div>`;
+    return;
+  }
+
+  // 즐겨찾기 장소 백엔드에서 가져오기
+  loadFavPlacesFromAPI().then(favList => {
+    const filtered = currentFavCat === 'all' ? favList : favList.filter(p => p.cat === currentFavCat);
+
+    if (!filtered.length) {
+      el.innerHTML = `<div style="text-align:center;padding:40px 20px;color:#aaa;font-size:13px;">
+        <div style="font-size:36px;margin-bottom:10px;">🐾</div>
+        해당 카테고리에 즐겨찾기한 장소가 없어요
+      </div>`;
+      return;
+    }
+
+    el.innerHTML = '';
+    filtered.forEach(p => {
+      const div = document.createElement('div');
+      div.style.cssText = 'display:flex;gap:12px;align-items:center;padding:13px;border:1.5px solid #ebebeb;border-radius:12px;cursor:pointer;transition:all 0.15s;margin-bottom:10px;background:#fff;';
+      div.onmouseover = () => div.style.borderColor = '#d49e5e';
+      div.onmouseout = () => div.style.borderColor = '#ebebeb';
+      div.innerHTML = `
+        <div style="width:70px;height:70px;border-radius:10px;overflow:hidden;flex-shrink:0;background:#f5e6ce;display:flex;align-items:center;justify-content:center;">
+          ${p.img
+            ? `<img src="${p.img}" style="width:100%;height:100%;object-fit:cover;" onerror="this.parentElement.innerHTML='<span style=\\'font-size:28px;\\'>${p.emoji}</span>'">`
+            : `<span style="font-size:28px;">${p.emoji}</span>`}
+        </div>
+        <div style="flex:1;min-width:0;">
+          <div style="font-size:11px;color:#d49e5e;font-weight:700;margin-bottom:3px;">${p.catLabel}</div>
+          <div style="font-size:14px;font-weight:700;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${p.name}</div>
+          <div style="font-size:12px;color:#999;margin-bottom:6px;">📍 ${p.addr}</div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            ${(p.tags||[]).slice(0,2).map(t => `<span style="font-size:10px;padding:2px 7px;border-radius:20px;background:#f5e6ce;color:#b8803e;font-weight:600;">${t}</span>`).join('')}
+          </div>
+        </div>
+        <div onclick="event.stopPropagation();toggleFav(${p.id});renderFavPage();" style="font-size:22px;cursor:pointer;flex-shrink:0;padding:4px;">💛</div>
+      `;
+      div.onclick = () => { closeFavPage(); selectPlace(p.id); openDetailPage(p.id); };
+      el.appendChild(div);
+    });
+  });
+}
+
+async function loadFavPlacesFromAPI() {
+  if (!authToken) return [];
+  try {
+    const res = await fetch(`${API_URL}/favorites/my`, {
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    return (Array.isArray(data) ? data : []).map(p => ({
+      id: p.placeId,
+      cat: p.category || 'etc',
+      catLabel: getCatLabel(p.category),
+      name: p.placeName || '',
+      addr: p.placeAddress || '',
+      emoji: getCatEmoji(p.category),
+      tags: p.tags ? p.tags.split(',').map(t => t.trim()).filter(Boolean) : [],
+      img: p.imageUrl || null,
+      rating: p.rating || 0,
+      lat: parseFloat(p.lat) || 0,
+      lng: parseFloat(p.lng) || 0,
+    }));
+  } catch (e) {
+    console.error('즐겨찾기 로드 실패:', e);
+    return favPlaces.map(id => places.find(x => x.id === id)).filter(Boolean);
+  }
+}
+
+/* ── INIT ── */
+window.addEventListener('load', () => {
+  initMap();
+});
+
+/* ── API 설정 ── */
+const API_URL = 'http://localhost:8081/api';
+let authToken = localStorage.getItem('token') || null;
+
+/* ── API에서 장소 불러오기 ── */
+async function loadPlacesFromAPI() {
+  // 지도 이동/줌 이벤트는 initMap의 idle 이벤트로 처리
+  await updateMapView();
+}
+
+async function fetchPlacesByBounds() {
+  try {
+    const bounds = map.getBounds();
+    const sw = bounds.getSouthWest();
+    const ne = bounds.getNorthEast();
+    const south = sw.getLat();
+    const north = ne.getLat();
+    const west = sw.getLng();
+    const east = ne.getLng();
+    const cat = currentCat === 'all' ? '' : currentCat;
+
+    const url = `${API_URL}/places?south=${south}&north=${north}&west=${west}&east=${east}&category=${cat}&size=200`;
+    const res = await fetch(url);
+    const data = await res.json();
+
+    const apiPlaces = (Array.isArray(data) ? data : []).map(p => ({
+      id: p.id,
+      cat: p.category || 'etc',
+      catLabel: getCatLabel(p.category),
+      name: p.name || '',
+      desc: p.description || '',
+      addr: p.address || '',
+      rating: p.rating || 0,
+      dist: '',
+      emoji: getCatEmoji(p.category),
+      tags: p.tags || [],
+      lat: parseFloat(p.lat),
+      lng: parseFloat(p.lng),
+      img: p.imageUrl || null,
+      imgs: p.imageUrl ? [p.imageUrl] : [],
+      phone: p.phone || '',
+      hours: p.hours || '',
+      reviews: []
+    })).filter(p => p.lat && p.lng && !isNaN(p.lat) && !isNaN(p.lng));
+
+    return apiPlaces;
+  } catch (e) {
+    console.error('장소 로드 실패:', e);
+    return [];
+  }
+}
+
+// 현재 지도 영역 안의 장소만 반환
+function getVisiblePlaces() {
+  if (!map) return places.slice(0, 50);
+  try {
+    const bounds = map.getBounds();
+    const visible = places.filter(p => {
+      if (!p.lat || !p.lng) return false;
+      const pos = new kakao.maps.LatLng(p.lat, p.lng);
+      return bounds.contain(pos);
+    });
+    return currentCat === 'all' ? visible : visible.filter(p => p.cat === currentCat);
+  } catch(e) {
+    return places.slice(0, 50);
+  }
+}
+
+// 지도 이동/줌 시 호출
+async function updateMapView() {
+  const level = map.getLevel();
+
+  if (level > 9) {
+    markers.forEach(m => m.setMap(null));
+    markers = [];
+    renderList([]);
+    const badge = document.getElementById('pinBadge');
+    if (badge) badge.textContent = '지도를 확대하면 장소가 표시돼요 🔍';
+    return;
+  }
+
+  const visible = await fetchPlacesByBounds();
+  places.length = 0;
+  visible.forEach(p => places.push(p));
+
+  const filtered = getFilteredBycat();
+  renderList(filtered);
+  renderMarkers(filtered);
+  const badge = document.getElementById('pinBadge');
+  if (badge) badge.textContent = `${filtered.length}개 장소 표시`;
+}
+
+function getCatLabel(cat) {
+  const m = {
+    cafe: '카페', restaurant: '음식점', park: '공원',
+    stay: '숙소', vet: '동물병원', pharmacy: '동물약국',
+    culture: '문화시설', grooming: '미용', supplies: '반려용품', etc: '기타'
+  };
+  return m[cat] || '기타';
+}
+
+function getCatEmoji(cat) {
+  const m = {
+    cafe: '☕', restaurant: '🍽', park: '🌿',
+    stay: '🏨', vet: '🏥', pharmacy: '💊',
+    culture: '🏛', grooming: '✂️', supplies: '🛍', etc: '🐾'
+  };
+  return m[cat] || '🐾';
+}
+
+function getCatImg(cat) {
+  const m = {
+    cafe: 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80',
+    restaurant: 'https://images.unsplash.com/photo-1569050467447-ce54b3bbc37d?w=600&q=80',
+    park: 'https://images.unsplash.com/photo-1425082661705-1834bfd09dca?w=600&q=80',
+    stay: 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80',
+    vet: 'https://images.unsplash.com/photo-1628009368231-7bb7cfcb0def?w=600&q=80',
+    pharmacy: 'https://images.unsplash.com/photo-1576602976047-174e57a47881?w=600&q=80',
+    culture: 'https://images.unsplash.com/photo-1563911892437-1feda0179b61?w=600&q=80',
+    grooming: 'https://images.unsplash.com/photo-1516734212186-a967f81ad0d7?w=600&q=80',
+    supplies: 'https://images.unsplash.com/photo-1583337130417-3346a1be7dee?w=600&q=80',
+  };
+  return m[cat] || 'https://images.unsplash.com/photo-1509042239860-f550ce710b93?w=600&q=80';
+}
+
+/* ── 로그인 API ── */
+async function apiLogin(email, password) {
+  try {
+    const res = await fetch(`${API_URL}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data.token) {
+      authToken = data.token;
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('nickname', data.nickname);
+      showToast(`${data.nickname}님 환영해요! 🐾`);
+      updateLoginUI(data.nickname);
+      closeLoginModal();
+    }
+  } catch (e) {
+    showToast('로그인 실패 ❌');
+  }
+}
+
+/* ── 회원가입 API ── */
+async function apiSignup(email, password, nickname, petName, petBreed, petAge, petSize) {
+  try {
+    const res = await fetch(`${API_URL}/auth/signup`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, nickname, petName, petBreed, petAge: parseInt(petAge) || null, petSize })
+    });
+    const data = await res.json();
+    if (data.token) {
+      authToken = data.token;
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('nickname', data.nickname);
+      showToast(`가입 완료! ${data.nickname}님 환영해요! 🐾`);
+      updateLoginUI(data.nickname);
+      closeLoginModal();
+    } else {
+      showToast(data.message || '회원가입 실패 ❌');
+    }
+  } catch (e) {
+    showToast('회원가입 실패 ❌');
+  }
+}
+
+function showProfileEditModal() {
+  // 현재 값 채우기
+  document.getElementById('editNickname').value = document.getElementById('mpNickname').textContent || '';
+  document.getElementById('editPetName').value = document.getElementById('mpPetName').textContent === '-' ? '' : document.getElementById('mpPetName').textContent;
+  document.getElementById('editPetBreed').value = document.getElementById('mpPetBreed').textContent === '-' ? '' : document.getElementById('mpPetBreed').textContent;
+  document.getElementById('editPetAge').value = document.getElementById('mpPetAge').textContent.replace('살','') === '-' ? '' : document.getElementById('mpPetAge').textContent.replace('살','');
+  const size = document.getElementById('mpPetSize').textContent;
+  document.getElementById('editPetSize').value = size === '-' ? '' : size;
+  document.getElementById('profileEditModal').style.display = 'flex';
+}
+
+function closeProfileEditModal() {
+  document.getElementById('profileEditModal').style.display = 'none';
+}
+
+async function submitProfileEdit() {
+  if (!authToken) return;
+  const nickname = document.getElementById('editNickname').value.trim();
+  const petName = document.getElementById('editPetName').value.trim();
+  const petBreed = document.getElementById('editPetBreed').value.trim();
+  const petAge = document.getElementById('editPetAge').value;
+  const petSize = document.getElementById('editPetSize').value;
+
+  if (!nickname) { showToast('닉네임을 입력해주세요'); return; }
+
+  try {
+    const res = await fetch(`${API_URL}/auth/me`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ nickname, petName, petBreed, petAge: parseInt(petAge) || null, petSize })
+    });
+    if (res.ok) {
+      const user = await res.json();
+      // 마이페이지 업데이트
+      document.getElementById('mpNickname').textContent = user.nickname || '';
+      document.getElementById('mpPetSub').textContent = [user.petName, user.petBreed, user.petAge ? user.petAge + '살' : ''].filter(Boolean).join(' · ');
+      document.getElementById('mpPetName').textContent = user.petName || '-';
+      document.getElementById('mpPetBreed').textContent = user.petBreed || '-';
+      document.getElementById('mpPetAge').textContent = user.petAge ? user.petAge + '살' : '-';
+      document.getElementById('mpPetSize').textContent = user.petSize || '-';
+      localStorage.setItem('nickname', user.nickname);
+      updateLoginUI(user.nickname);
+      closeProfileEditModal();
+      showToast('프로필이 수정됐어요! 🐾');
+    } else {
+      showToast('수정 실패 ❌');
+    }
+  } catch(e) {
+    showToast('수정 실패 ❌');
+  }
+}
+
+/* ── VISIT HISTORY ── */
+function addVisitHistory(p) {
+  const history = JSON.parse(localStorage.getItem('visitHistory') || '[]');
+  // 중복 제거 (같은 장소는 최신 기록으로 갱신)
+  const filtered = history.filter(v => v.id !== p.id);
+  filtered.unshift({
+    id: p.id,
+    name: p.name,
+    addr: p.addr,
+    cat: p.cat,
+    catLabel: p.catLabel,
+    emoji: p.emoji,
+    img: p.img || null,
+    visitedAt: new Date().toISOString()
+  });
+  // 최대 50개만 보관
+  localStorage.setItem('visitHistory', JSON.stringify(filtered.slice(0, 50)));
+}
+
+function formatVisitDate(iso) {
+  const d = new Date(iso);
+  const now = new Date();
+  const diff = Math.floor((now - d) / 1000 / 60);
+  if (diff < 60) return `${diff}분 전`;
+  if (diff < 1440) return `${Math.floor(diff/60)}시간 전`;
+  return `${Math.floor(diff/1440)}일 전`;
+}
+
+function doLogout() {
+  if (!confirm('로그아웃 하시겠어요?')) return;
+  authToken = null;
+  localStorage.removeItem('token');
+  localStorage.removeItem('nickname');
+  favPlaces = [];
+  closeMyPage();
+  updateLoginUI(null);
+  showToast('로그아웃 되었어요 👋');
+}
+
+/* ── 리뷰 작성 API ── */
+async function apiSubmitReview(placeId, stars, content) {
+  if (!authToken) { showToast('로그인이 필요해요!'); return null; }
+  try {
+    const res = await fetch(`${API_URL}/reviews`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`
+      },
+      body: JSON.stringify({ placeId, stars, content })
+    });
+    return await res.json();
+  } catch (e) {
+    showToast('리뷰 등록 실패 ❌');
+    return null;
+  }
+}
+
+/* ── 즐겨찾기 토글 API ── */
+async function apiToggleFavorite(placeId) {
+  if (!authToken) { showToast('로그인이 필요해요!'); return null; }
+  try {
+    const res = await fetch(`${API_URL}/favorites/${placeId}`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${authToken}` }
+    });
+    const data = await res.json();
+    return data.isFavorite;
+  } catch (e) {
+    showToast('즐겨찾기 실패 ❌');
+    return null;
+  }
+}
+
+/* ── 로그인 모달 ── */
+function showLoginModal() {
+  document.getElementById('loginModal').style.display = 'flex';
+}
+function closeLoginModal() {
+  document.getElementById('loginModal').style.display = 'none';
+}
+
+/* ── 로그인 UI 업데이트 ── */
+function updateLoginUI(nickname) {
+  const btn = document.querySelector('.nav-login');
+  if (nickname) {
+    btn.textContent = `${nickname} 님`;
+  } else {
+    btn.textContent = '마이페이지';
+  }
+}
+
+/* ── 초기 로그인 상태 복원 ── */
+const savedNickname = localStorage.getItem('nickname');
+if (savedNickname) updateLoginUI(savedNickname);
+</script>
+
+<!-- 로그인/회원가입 모달 -->
+<div id="loginModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:28px;width:360px;max-width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.15);overflow:hidden;">
+    <div style="font-size:18px;font-weight:700;margin-bottom:20px;text-align:center;">🐾 댕댕여지도</div>
+
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <button onclick="switchTab('login')" id="loginTab" style="flex:1;padding:9px;border:1.5px solid #d49e5e;border-radius:8px;background:#d49e5e;color:#fff;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">로그인</button>
+      <button onclick="switchTab('signup')" id="signupTab" style="flex:1;padding:9px;border:1.5px solid #e8e8e8;border-radius:8px;background:#fff;color:#666;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:700;cursor:pointer;">회원가입</button>
+    </div>
+
+    <!-- 로그인 폼 -->
+    <div id="loginForm">
+      <input id="loginEmail" type="email" placeholder="이메일" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:10px;">
+      <input id="loginPassword" type="password" placeholder="비밀번호" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:16px;">
+      <button onclick="apiLogin(document.getElementById('loginEmail').value, document.getElementById('loginPassword').value)" style="width:100%;background:#d49e5e;color:#fff;border:none;border-radius:8px;padding:12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">로그인</button>
+    </div>
+
+    <!-- 회원가입 폼 -->
+    <div id="signupForm" style="display:none;">
+      <input id="signupEmail" type="email" placeholder="이메일" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:10px;">
+      <input id="signupPassword" type="password" placeholder="비밀번호" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:10px;">
+      <input id="signupNickname" type="text" placeholder="닉네임" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:14px;">
+      <div style="font-size:12px;font-weight:700;color:#d49e5e;margin-bottom:8px;">🐶 반려견 정보</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+        <input id="signupPetName" type="text" placeholder="이름" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
+        <input id="signupPetBreed" type="text" placeholder="품종" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
+        <input id="signupPetAge" type="number" placeholder="나이" min="0" max="30" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
+        <select id="signupPetSize" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;color:#555;background:#fff;box-sizing:border-box;">
+          <option value="">크기 선택</option>
+          <option value="소형">소형 (7kg 이하)</option>
+          <option value="중형">중형 (7~25kg)</option>
+          <option value="대형">대형 (25kg 이상)</option>
+        </select>
+      </div>
+      <button onclick="apiSignup(
+        document.getElementById('signupEmail').value,
+        document.getElementById('signupPassword').value,
+        document.getElementById('signupNickname').value,
+        document.getElementById('signupPetName').value,
+        document.getElementById('signupPetBreed').value,
+        document.getElementById('signupPetAge').value,
+        document.getElementById('signupPetSize').value
+      )" style="width:100%;background:#d49e5e;color:#fff;border:none;border-radius:8px;padding:12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">회원가입</button>
+    </div>
+
+    <button onclick="closeLoginModal()" style="width:100%;margin-top:10px;background:none;border:none;color:#aaa;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;">닫기</button>
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  if (tab === 'login') {
+    document.getElementById('loginForm').style.display = 'block';
+    document.getElementById('signupForm').style.display = 'none';
+    document.getElementById('loginTab').style.background = '#d49e5e';
+    document.getElementById('loginTab').style.color = '#fff';
+    document.getElementById('loginTab').style.borderColor = '#d49e5e';
+    document.getElementById('signupTab').style.background = '#fff';
+    document.getElementById('signupTab').style.color = '#666';
+    document.getElementById('signupTab').style.borderColor = '#e8e8e8';
+  } else {
+    document.getElementById('loginForm').style.display = 'none';
+    document.getElementById('signupForm').style.display = 'block';
+    document.getElementById('signupTab').style.background = '#d49e5e';
+    document.getElementById('signupTab').style.color = '#fff';
+    document.getElementById('signupTab').style.borderColor = '#d49e5e';
+    document.getElementById('loginTab').style.background = '#fff';
+    document.getElementById('loginTab').style.color = '#666';
+    document.getElementById('loginTab').style.borderColor = '#e8e8e8';
+  }
+}
+</script>
+
+
+<!-- 마이페이지 -->
+<div id="myPage" style="display:none;position:fixed;inset:0;background:#f7f7f7;z-index:9000;flex-direction:column;overflow:hidden;">
+
+  <!-- 헤더 -->
+  <div style="height:52px;background:#fff;border-bottom:1px solid #ebebeb;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;">
+    <button onclick="closeMyPage()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#666;padding:4px 8px;border-radius:6px;">←</button>
+    <span style="font-size:17px;font-weight:700;">마이페이지</span>
+  </div>
+
+  <div style="flex:1;overflow-y:auto;">
+
+    <!-- 프로필 카드 -->
+    <div style="background:linear-gradient(135deg,#d49e5e 0%,#b8803e 100%);padding:28px 24px 24px;color:#fff;position:relative;">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px;">
+        <div style="width:64px;height:64px;border-radius:50%;background:rgba(255,255,255,0.25);border:3px solid rgba(255,255,255,0.6);display:flex;align-items:center;justify-content:center;font-size:30px;flex-shrink:0;">🐶</div>
+        <div>
+          <div style="font-size:19px;font-weight:900;margin-bottom:3px;letter-spacing:-0.3px;" id="mpNickname"></div>
+          <div style="font-size:13px;color:rgba(255,255,255,0.8);" id="mpPetSub"></div>
+        </div>
+        <button onclick="showProfileEditModal()" style="margin-left:auto;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);color:#fff;border-radius:8px;padding:6px 14px;font-family:'Noto Sans KR',sans-serif;font-size:12px;cursor:pointer;">수정</button>
+      </div>
+      <!-- 통계 -->
+      <div style="display:flex;background:rgba(255,255,255,0.15);border-radius:12px;padding:14px 0;text-align:center;">
+        <div style="flex:1;border-right:1px solid rgba(255,255,255,0.2);">
+          <div style="font-size:22px;font-weight:900;" id="mpFavCount">0</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:2px;">즐겨찾기</div>
+        </div>
+        <div style="flex:1;border-right:1px solid rgba(255,255,255,0.2);">
+          <div style="font-size:22px;font-weight:900;" id="mpReviewCount">0</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:2px;">리뷰</div>
+        </div>
+        <div style="flex:1;">
+          <div style="font-size:22px;font-weight:900;" id="mpPetSizeIcon">🐾</div>
+          <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:2px;" id="mpPetSizeLabel">-</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 반려견 정보 -->
+    <div style="margin:16px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+      <div style="padding:14px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;font-weight:700;color:#d49e5e;">🐾 반려견 정보</div>
+      <div style="padding:14px 16px;display:flex;flex-direction:column;gap:10px;">
+        <div style="display:flex;justify-content:space-between;font-size:13px;">
+          <span style="color:#888;">이름</span><span style="font-weight:600;" id="mpPetName">-</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;">
+          <span style="color:#888;">품종</span><span style="font-weight:600;" id="mpPetBreed">-</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;">
+          <span style="color:#888;">나이</span><span style="font-weight:600;" id="mpPetAge">-</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:13px;">
+          <span style="color:#888;">크기</span><span style="font-weight:600;" id="mpPetSize">-</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 메뉴 리스트 -->
+    <div style="margin:0 16px 16px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+      <div style="padding:14px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;font-weight:700;color:#d49e5e;">📋 내 활동</div>
+
+      <div onclick="closeMyPage();showFavPage();" style="display:flex;align-items:center;padding:15px 16px;border-bottom:1px solid #f8f8f8;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#fdf8f2'" onmouseout="this.style.background='#fff'">
+        <span style="font-size:20px;margin-right:12px;">💛</span>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">즐겨찾기 목록</div>
+          <div style="font-size:12px;color:#aaa;margin-top:1px;">저장한 장소 모아보기</div>
+        </div>
+        <span style="color:#ccc;font-size:18px;">›</span>
+      </div>
+
+      <div onclick="showMyReviews()" style="display:flex;align-items:center;padding:15px 16px;border-bottom:1px solid #f8f8f8;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#fdf8f2'" onmouseout="this.style.background='#fff'">
+        <span style="font-size:20px;margin-right:12px;">✍️</span>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">내가 쓴 리뷰</div>
+          <div style="font-size:12px;color:#aaa;margin-top:1px;">작성한 리뷰 모아보기</div>
+        </div>
+        <span style="color:#ccc;font-size:18px;">›</span>
+      </div>
+
+      <div onclick="showVisitHistory()" style="display:flex;align-items:center;padding:15px 16px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#fdf8f2'" onmouseout="this.style.background='#fff'">
+        <span style="font-size:20px;margin-right:12px;">📍</span>
+        <div style="flex:1;">
+          <div style="font-size:14px;font-weight:600;">방문 기록</div>
+          <div style="font-size:12px;color:#aaa;margin-top:1px;">다녀온 장소 기록</div>
+        </div>
+        <span style="color:#ccc;font-size:18px;">›</span>
+      </div>
+    </div>
+
+    <!-- 설정 -->
+    <div style="margin:0 16px 16px;background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.05);">
+      <div style="padding:14px 16px;border-bottom:1px solid #f5f5f5;font-size:13px;font-weight:700;color:#d49e5e;">⚙️ 설정</div>
+      <div onclick="doLogout()" style="display:flex;align-items:center;padding:15px 16px;cursor:pointer;transition:background 0.15s;" onmouseover="this.style.background='#fdf8f2'" onmouseout="this.style.background='#fff'">
+        <span style="font-size:20px;margin-right:12px;">🚪</span>
+        <div style="flex:1;font-size:14px;font-weight:600;">로그아웃</div>
+        <span style="color:#ccc;font-size:18px;">›</span>
+      </div>
+    </div>
+
+    <!-- 방문 기록 섹션 -->
+    <!-- 내가 쓴 리뷰 섹션 -->
+
+    <div style="height:24px;"></div>
+  </div>
+</div>
+
+<!-- 내가 쓴 리뷰 페이지 -->
+<div id="myReviewPage" style="display:none;position:fixed;inset:0;background:#f7f7f7;z-index:9100;flex-direction:column;overflow:hidden;">
+  <div style="height:52px;background:#fff;border-bottom:1px solid #ebebeb;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;">
+    <button onclick="closeMyReviewPage()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#666;padding:4px 8px;">←</button>
+    <span style="font-size:17px;font-weight:700;">✍️ 내가 쓴 리뷰</span>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px;">
+    <div id="myReviewList" style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.05);padding:0 16px;"></div>
+  </div>
+</div>
+
+<!-- 방문 기록 페이지 -->
+<div id="visitHistoryPage" style="display:none;position:fixed;inset:0;background:#f7f7f7;z-index:9100;flex-direction:column;overflow:hidden;">
+  <div style="height:52px;background:#fff;border-bottom:1px solid #ebebeb;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;">
+    <button onclick="closeVisitHistoryPage()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#666;padding:4px 8px;">←</button>
+    <span style="font-size:17px;font-weight:700;">📍 방문 기록</span>
+    <button onclick="clearVisitHistory()" style="margin-left:auto;font-size:12px;color:#aaa;background:none;border:none;cursor:pointer;">전체 삭제</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px;">
+    <div id="visitHistoryList" style="background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.05);padding:0 16px;"></div>
+  </div>
+</div>
+
+<!-- 즐겨찾기 페이지 -->
+<div id="favPage" style="display:none;position:fixed;inset:0;background:#fff;z-index:9000;flex-direction:column;overflow:hidden;">
+  <!-- 헤더 -->
+  <div style="height:52px;background:#fff;border-bottom:1px solid #ebebeb;display:flex;align-items:center;padding:0 20px;gap:12px;flex-shrink:0;">
+    <button onclick="closeFavPage()" style="border:none;background:none;font-size:22px;cursor:pointer;color:#666;padding:4px 8px;border-radius:6px;">←</button>
+    <span style="font-size:17px;font-weight:700;">💛 즐겨찾기</span>
+    <span id="favCount" style="font-size:13px;color:#aaa;margin-left:2px;"></span>
+  </div>
+  <!-- 카테고리 필터 -->
+  <div style="padding:12px 16px;border-bottom:1px solid #f0f0f0;display:flex;gap:8px;overflow-x:auto;flex-shrink:0;-ms-overflow-style:none;scrollbar-width:none;">
+    <button class="fav-cat-btn active" onclick="setFavCat(this,'all')">전체</button>
+    <button class="fav-cat-btn" onclick="setFavCat(this,'vet')">🏥 동물병원</button>
+    <button class="fav-cat-btn" onclick="setFavCat(this,'pharmacy')">💊 동물약국</button>
+    <button class="fav-cat-btn" onclick="setFavCat(this,'cafe')">☕ 카페</button>
+    <button class="fav-cat-btn" onclick="setFavCat(this,'culture')">🏛 문화시설</button>
+    <button class="fav-cat-btn" onclick="setFavCat(this,'stay')">🏨 숙소</button>
+    <button class="fav-cat-btn" onclick="setFavCat(this,'grooming')">✂️ 미용</button>
+    <button class="fav-cat-btn" onclick="setFavCat(this,'supplies')">🛍 반려용품</button>
+    <button class="fav-cat-btn" onclick="setFavCat(this,'restaurant')">🍽 음식점</button>
+  </div>
+  <!-- 목록 -->
+  <div style="flex:1;overflow-y:auto;padding:16px;" id="favPageList"></div>
+</div>
+
+
+<!-- 프로필 수정 모달 -->
+<div id="profileEditModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:99999;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:16px;padding:28px;width:360px;max-width:90%;box-shadow:0 8px 40px rgba(0,0,0,0.15);overflow:hidden;">
+    <div style="font-size:17px;font-weight:900;margin-bottom:20px;text-align:center;">✏️ 프로필 수정</div>
+    <div style="font-size:12px;font-weight:700;color:#d49e5e;margin-bottom:8px;">기본 정보</div>
+    <input id="editNickname" type="text" placeholder="닉네임" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:14px;box-sizing:border-box;">
+    <div style="font-size:12px;font-weight:700;color:#d49e5e;margin-bottom:8px;">🐶 반려견 정보</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
+      <input id="editPetName" type="text" placeholder="이름" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
+      <input id="editPetBreed" type="text" placeholder="품종" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px;">
+      <input id="editPetAge" type="number" placeholder="나이" min="0" max="30" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
+      <select id="editPetSize" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;color:#555;background:#fff;box-sizing:border-box;">
+        <option value="">크기 선택</option>
+        <option value="소형">소형 (7kg 이하)</option>
+        <option value="중형">중형 (7~25kg)</option>
+        <option value="대형">대형 (25kg 이상)</option>
+      </select>
+    </div>
+    <div style="display:flex;gap:10px;">
+      <button onclick="closeProfileEditModal()" style="flex:1;background:#f5f5f5;color:#555;border:none;border-radius:8px;padding:12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">취소</button>
+      <button onclick="submitProfileEdit()" style="flex:1;background:#d49e5e;color:#fff;border:none;border-radius:8px;padding:12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">저장</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

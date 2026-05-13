@@ -1,0 +1,17 @@
+# 백엔드 (Spring Boot)
+daengdaeng-server/.gradle/
+daengdaeng-server/build/
+daengdaeng-server/.idea/
+daengdaeng-server/*.iml
+daengdaeng-server/out/
+daengdaeng-server/src/main/resources/application.properties
+
+# 프론트
+.DS_Store
+Thumbs.db
+
+# Python 스크립트 (DB 정보 포함)
+*.py
+
+# 로그
+*.log
