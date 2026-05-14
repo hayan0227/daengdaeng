@@ -697,9 +697,10 @@ function renderList(list) {
 function handleSearch() {
   const q = document.getElementById('searchInput').value.toLowerCase().trim();
   const filtered = getFilteredBycat().filter(p =>
-    !q || p.name.includes(q) || p.addr.includes(q) || p.desc.includes(q)
+    !q || p.name.toLowerCase().includes(q) || p.addr.toLowerCase().includes(q) || (p.desc && p.desc.toLowerCase().includes(q))
   );
   renderList(filtered);
+  renderMarkers(filtered);
 }
 
 function getFilteredBycat() {
