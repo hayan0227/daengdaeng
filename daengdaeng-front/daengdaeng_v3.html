@@ -87,14 +87,17 @@ nav {
   color: #fff;
   border: none;
   border-radius: 8px;
-  padding: 9px 24px;
+  padding: 7px 16px;
   font-family: 'Noto Sans KR', sans-serif;
-  font-size: 14px;
+  font-size: 13px;
   font-weight: 600;
   cursor: pointer;
   transition: background 0.15s;
   white-space: nowrap;
   letter-spacing: -0.2px;
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .nav-login:hover { background: var(--point-dark); }
 
@@ -458,8 +461,8 @@ nav {
   </a>
   <div class="nav-links">
     <a class="nav-link" href="#" onclick="showFavPage();return false;">즐겨찾기</a>
-
   </div>
+  <button id="navLogoutBtn" onclick="doLogout()" style="display:none;background:none;border:1px solid #e0e0e0;border-radius:6px;padding:7px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;font-weight:500;color:#999;cursor:pointer;margin-right:6px;white-space:nowrap;">로그아웃</button>
   <button class="nav-login" onclick="authToken ? showMyPage() : showLoginModal()">마이페이지</button>
 </nav>
 
@@ -976,7 +979,19 @@ let totalReviews = 0;
 async function showMyPage() {
   document.getElementById('myPage').style.display = 'flex';
   document.getElementById('favFilterBar').style.display = 'none';
-  document.getElementById('mpFavCount').textContent = favPlaces.length;
+  // 즐겨찾기 카운트 백엔드에서 가져오기
+  if (authToken) {
+    try {
+      const favRes = await fetch(`${API_URL}/favorites/my`, {
+        headers: { 'Authorization': `Bearer ${authToken}` }
+      });
+      const favData = await favRes.json();
+      favPlaces = Array.isArray(favData) ? favData.map(f => f.placeId) : [];
+      document.getElementById('mpFavCount').textContent = favPlaces.length;
+    } catch(e) {
+      document.getElementById('mpFavCount').textContent = favPlaces.length;
+    }
+  }
 
   // 실제 유저 정보 가져오기
   if (authToken) {
@@ -1834,12 +1849,81 @@ function closeLoginModal() {
 }
 
 /* ── 로그인 UI 업데이트 ── */
+let emailChecked = false;
+
+function checkPasswordMatch() {
+  const pw = document.getElementById('signupPassword').value;
+  const pw2 = document.getElementById('signupPasswordConfirm').value;
+  const msg = document.getElementById('passwordMatchMsg');
+  if (!pw2) { msg.textContent = ''; return; }
+  if (pw === pw2) {
+    msg.textContent = '✅ 비밀번호가 일치해요';
+    msg.style.color = '#1D9E75';
+  } else {
+    msg.textContent = '❌ 비밀번호가 일치하지 않아요';
+    msg.style.color = '#e55';
+  }
+}
+
+async function checkEmailDup() {
+  const email = document.getElementById('signupEmail').value.trim();
+  const msg = document.getElementById('emailCheckMsg');
+  if (!email) { msg.textContent = '이메일을 입력해주세요'; msg.style.color = '#e55'; return; }
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) {
+    msg.textContent = '❌ 이메일 형식이 올바르지 않아요';
+    msg.style.color = '#e55';
+    emailChecked = false;
+    return;
+  }
+  try {
+    const res = await fetch(`${API_URL}/auth/check-email?email=${encodeURIComponent(email)}`);
+    const data = await res.json();
+    if (data.available) {
+      msg.textContent = '✅ 사용 가능한 이메일이에요';
+      msg.style.color = '#1D9E75';
+      emailChecked = true;
+    } else {
+      msg.textContent = '❌ 이미 사용 중인 이메일이에요';
+      msg.style.color = '#e55';
+      emailChecked = false;
+    }
+  } catch(e) {
+    msg.textContent = '❌ 중복 확인에 실패했어요';
+    msg.style.color = '#e55';
+    emailChecked = false;
+  }
+}
+
+function doSignup() {
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+  const passwordConfirm = document.getElementById('signupPasswordConfirm').value;
+  const nickname = document.getElementById('signupNickname').value.trim();
+  const petName = document.getElementById('signupPetName').value.trim();
+  const petBreed = document.getElementById('signupPetBreed').value;
+  const petAge = document.getElementById('signupPetAge').value;
+  const petSize = document.getElementById('signupPetSize').value;
+
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!emailRegex.test(email)) { showToast('이메일 형식을 확인해주세요 ❌'); return; }
+  if (!emailChecked) { showToast('이메일 중복 확인을 해주세요 ❌'); return; }
+  if (!password) { showToast('비밀번호를 입력해주세요 ❌'); return; }
+  if (password !== passwordConfirm) { showToast('비밀번호가 일치하지 않아요 ❌'); return; }
+  if (!nickname) { showToast('닉네임을 입력해주세요 ❌'); return; }
+
+  apiSignup(email, password, nickname, petName, petBreed, petAge, petSize);
+}
+
 function updateLoginUI(nickname) {
   const btn = document.querySelector('.nav-login');
+  const logoutBtn = document.getElementById('navLogoutBtn');
   if (nickname) {
     btn.textContent = `${nickname} 님`;
+    if (logoutBtn) logoutBtn.style.display = 'inline-block';
   } else {
     btn.textContent = '마이페이지';
+    if (logoutBtn) logoutBtn.style.display = 'none';
   }
 }
 
@@ -1867,13 +1951,38 @@ if (savedNickname) updateLoginUI(savedNickname);
 
     <!-- 회원가입 폼 -->
     <div id="signupForm" style="display:none;">
-      <input id="signupEmail" type="email" placeholder="이메일" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:10px;">
-      <input id="signupPassword" type="password" placeholder="비밀번호" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:10px;">
-      <input id="signupNickname" type="text" placeholder="닉네임" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:14px;">
+      <div style="display:flex;gap:6px;margin-bottom:10px;">
+        <input id="signupEmail" type="email" placeholder="이메일" style="flex:1;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
+        <button onclick="checkEmailDup()" style="flex-shrink:0;background:#d49e5e;color:#fff;border:none;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;">중복확인</button>
+      </div>
+      <div id="emailCheckMsg" style="font-size:11px;margin:-6px 0 8px;padding-left:2px;"></div>
+      <input id="signupPassword" type="password" placeholder="비밀번호" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:10px;box-sizing:border-box;">
+      <input id="signupPasswordConfirm" type="password" placeholder="비밀번호 확인" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:4px;box-sizing:border-box;" oninput="checkPasswordMatch()">
+      <div id="passwordMatchMsg" style="font-size:11px;margin-bottom:8px;padding-left:2px;"></div>
+      <input id="signupNickname" type="text" placeholder="닉네임" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;margin-bottom:14px;box-sizing:border-box;">
       <div style="font-size:12px;font-weight:700;color:#d49e5e;margin-bottom:8px;">🐶 반려견 정보</div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px;">
         <input id="signupPetName" type="text" placeholder="이름" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
-        <input id="signupPetBreed" type="text" placeholder="품종" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
+        <select id="signupPetBreed" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;color:#555;background:#fff;box-sizing:border-box;">
+          <option value="">품종 선택</option>
+          <optgroup label="소형견">
+            <option>말티즈</option><option>포메라니안</option><option>치와와</option>
+            <option>요크셔테리어</option><option>푸들(토이)</option><option>시추</option>
+            <option>닥스훈트</option><option>파피용</option><option>비숑프리제</option>
+          </optgroup>
+          <optgroup label="중형견">
+            <option>코커스패니얼</option><option>웰시코기</option><option>비글</option>
+            <option>불독</option><option>푸들(미니어처)</option><option>샤페이</option>
+            <option>차우차우</option><option>시바견</option>
+          </optgroup>
+          <optgroup label="대형견">
+            <option>골든리트리버</option><option>래브라도리트리버</option><option>독일셰퍼드</option>
+            <option>보더콜리</option><option>사모예드</option><option>허스키</option>
+            <option>말라뮤트</option><option>그레이트데인</option><option>로트와일러</option>
+          </optgroup>
+          <option value="믹스견">믹스견</option>
+          <option value="직접입력">직접입력</option>
+        </select>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px;">
         <input id="signupPetAge" type="number" placeholder="나이" min="0" max="30" style="width:100%;border:1.5px solid #e8e8e8;border-radius:8px;padding:10px 12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;outline:none;box-sizing:border-box;">
@@ -1884,15 +1993,7 @@ if (savedNickname) updateLoginUI(savedNickname);
           <option value="대형">대형 (25kg 이상)</option>
         </select>
       </div>
-      <button onclick="apiSignup(
-        document.getElementById('signupEmail').value,
-        document.getElementById('signupPassword').value,
-        document.getElementById('signupNickname').value,
-        document.getElementById('signupPetName').value,
-        document.getElementById('signupPetBreed').value,
-        document.getElementById('signupPetAge').value,
-        document.getElementById('signupPetSize').value
-      )" style="width:100%;background:#d49e5e;color:#fff;border:none;border-radius:8px;padding:12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">회원가입</button>
+      <button onclick="doSignup()" style="width:100%;background:#d49e5e;color:#fff;border:none;border-radius:8px;padding:12px;font-family:'Noto Sans KR',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">회원가입</button>
     </div>
 
     <button onclick="closeLoginModal()" style="width:100%;margin-top:10px;background:none;border:none;color:#aaa;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;">닫기</button>

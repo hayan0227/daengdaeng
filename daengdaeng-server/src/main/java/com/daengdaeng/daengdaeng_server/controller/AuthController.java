@@ -35,6 +35,12 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @GetMapping("/check-email")
+    public ResponseEntity<?> checkEmail(@RequestParam String email) {
+        boolean available = !userRepository.existsByEmail(email);
+        return ResponseEntity.ok(java.util.Map.of("available", available));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<UserResponse> me(HttpServletRequest request) {
         String email = getEmailFromRequest(request);
